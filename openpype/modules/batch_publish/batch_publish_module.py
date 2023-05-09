@@ -19,24 +19,12 @@ from openpype.modules import (
 )
 
 
-# Settings definition of this addon using `JsonFilesSettingsDef`
-# - JsonFilesSettingsDef is prepared settings definition using json files
-#   to define settings and store default values
+
 class BatchPublishSettingsDef(JsonFilesSettingsDef):
-    # This will add prefixes to every schema and template from `schemas`
-    #   subfolder.
-    # - it is not required to fill the prefix but it is highly
-    #   recommended as schemas and templates may have name clashes across
-    #   multiple addons
-    # - it is also recommended that prefix has addon name in it
+
     schema_prefix = "batch_publish_addon"
 
     def get_settings_root_path(self):
-        """Implemented abstract class of JsonFilesSettingsDef.
-
-        Return directory path where json files defying addon settings are
-        located.
-        """
         return os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "settings"
@@ -44,14 +32,8 @@ class BatchPublishSettingsDef(JsonFilesSettingsDef):
 
 
 class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
-    """This Addon has defined its settings and interface.
 
-    This example has system settings with an enabled option. And use
-    few other interfaces:
-    - `IPluginPaths` to define custom plugin paths
-    - `ITrayAction` to be shown in tray tool
-    """
-    label = "Batch Publish Cache"
+    label = "Batch Publish"
     name = "batch_publish_addon"
 
     def initialize(self, settings):
@@ -78,9 +60,9 @@ class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
         if self._dialog is not None:
             return
 
-        from .widgets import MyExampleDialog
+        from .widgets import BatchPublishDialog
 
-        self._dialog = MyExampleDialog()
+        self._dialog = BatchPublishDialog()
 
     def show_dialog(self):
         """Show dialog with connected modules.

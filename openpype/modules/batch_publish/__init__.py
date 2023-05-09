@@ -4,12 +4,12 @@ If addon class or settings definition won't be here their definition won't
 be found by OpenPype discovery.
 """
 
-from .addon import (
-    AddonSettingsDef,
-    BatchPublishCache
+from .batch_publish_module import (
+    BatchPublishSettingsDef,
+    BatchPublishModule
 )
 
 __all__ = (
-    "AddonSettingsDef",
-    "BatchPublishCache"
+    "BatchPublishSettingsDef",
+    "BatchPublishModule"
 )
