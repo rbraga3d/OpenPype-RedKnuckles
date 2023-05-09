@@ -22,14 +22,14 @@ from openpype.modules import (
 # Settings definition of this addon using `JsonFilesSettingsDef`
 # - JsonFilesSettingsDef is prepared settings definition using json files
 #   to define settings and store default values
-class AddonSettingsDef(JsonFilesSettingsDef):
+class BatchPublishSettingsDef(JsonFilesSettingsDef):
     # This will add prefixes to every schema and template from `schemas`
     #   subfolder.
     # - it is not required to fill the prefix but it is highly
     #   recommended as schemas and templates may have name clashes across
     #   multiple addons
     # - it is also recommended that prefix has addon name in it
-    schema_prefix = "batch_publish_cache_addon"
+    schema_prefix = "batch_publish_addon"
 
     def get_settings_root_path(self):
         """Implemented abstract class of JsonFilesSettingsDef.
@@ -43,7 +43,7 @@ class AddonSettingsDef(JsonFilesSettingsDef):
         )
 
 
-class BatchPublishCache(OpenPypeAddOn, IPluginPaths, ITrayAction):
+class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
     """This Addon has defined its settings and interface.
 
     This example has system settings with an enabled option. And use
@@ -52,7 +52,7 @@ class BatchPublishCache(OpenPypeAddOn, IPluginPaths, ITrayAction):
     - `ITrayAction` to be shown in tray tool
     """
     label = "Batch Publish Cache"
-    name = "batch_publish_cache_addon"
+    name = "batch_publish_addon"
 
     def initialize(self, settings):
         """Initialization of addon."""
@@ -118,7 +118,7 @@ class BatchPublishCache(OpenPypeAddOn, IPluginPaths, ITrayAction):
         click_group.add_command(cli_main)
 
 
-@click.group(BatchPublishCache.name, help="Example addon dynamic cli commands.")
+@click.group(BatchPublishModule.name, help="Example addon dynamic cli commands.")
 def cli_main():
     pass
 
@@ -139,6 +139,6 @@ def show_dialog():
     from openpype.tools.utils.lib import qt_app_context
 
     manager = ModulesManager()
-    batch_publish_cache_addon = manager.modules_by_name[BatchPublishCache.name]
+    batch_publish_addon = manager.modules_by_name[BatchPublishModule.name]
     with qt_app_context():
-        batch_publish_cache_addon.show_dialog()
+        batch_publish_addon.show_dialog()
