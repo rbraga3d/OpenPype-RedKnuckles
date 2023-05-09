@@ -1,0 +1,5 @@
+{
+    "modules/batch_publish_cache": {
+        "enabled": true
+    }
+}
