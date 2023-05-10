@@ -43,6 +43,7 @@ from .entities import (
     get_thumbnail_id_from_source,
 
     get_workfile_info,
+    get_docs_by_filter
 )
 
 from .entity_links import (
@@ -99,10 +100,12 @@ __all__ = (
     "get_thumbnail_id_from_source",
 
     "get_workfile_info",
+    "get_docs_by_filter"
 
     "get_linked_asset_ids",
     "get_linked_assets",
     "get_linked_representation_id",
 
     "create_project",
+
 )

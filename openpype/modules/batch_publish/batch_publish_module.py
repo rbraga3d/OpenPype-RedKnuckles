@@ -33,7 +33,7 @@ class BatchPublishSettingsDef(JsonFilesSettingsDef):
 
 class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
 
-    label = "Batch Publish"
+    label = "Batch Publish (beta)"
     name = "batch_publish_addon"
 
     def initialize(self, settings):
