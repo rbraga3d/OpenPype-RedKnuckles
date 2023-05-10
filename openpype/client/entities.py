@@ -1517,7 +1517,7 @@ def get_workfile_info(
 
 
 def get_docs_by_filter(project_name, query_filter):
-    """Receive document data through mongo query_filter.
+    """Receive documents data through mongo query_filter.
 
     Args:
         project_name (str): Name of project where to look for queried entities.
@@ -1531,6 +1531,19 @@ def get_docs_by_filter(project_name, query_filter):
     return conn.find(query_filter)
 
 
+def get_doc_by_filter(project_name, query_filter):
+    """Receive a single document data through mongo query_filter.
+
+    Args:
+        project_name (str): Name of project where to look for queried entities.
+        query_filter (dict): MongoDB filter.
+
+    Returns:
+        Union[Dict, None]: A Document obtained from the query_filter.
+            None is returned if document with specified filters was not found.
+    """
+    conn = get_project_connection(project_name)
+    return conn.find_one(query_filter)
 
 
 

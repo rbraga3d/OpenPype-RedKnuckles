@@ -1,10 +1,18 @@
+"""
+This class will be refactored
+For now, it's just being used as an addon prototype
+"""
+
+
 from pprint import pprint
 from qtpy import QtWidgets, QtCore, QtGui
 
-from openpype.pipeline import AvalonMongoDB
 from openpype.client import (
     get_projects,
-    get_docs_by_filter
+    get_whole_project,
+    get_doc_by_filter,
+    get_docs_by_filter,
+
 )
 from openpype.style import load_stylesheet
 
@@ -12,6 +20,71 @@ WINDOW_TITLE = "Batch Publish (beta)"
 PROJECTS_TITLE = "Projects"
 SHOTS_TITLE = "Shots"
 SCENES_TITLE = "Scenes"
+
+
+def get_shots_data(project_name):
+    """Organize shot names and their work files into dicts:
+    i.e {"SH001": {
+            "files_data": [
+                        {
+                            "name": 'file_name_v001.ma',
+                            "path": '/path/to/file_name_v001.ma'
+                        },
+                        {
+                            "name": 'file_name_v002.ma',
+                            "path": '/path/to/file_name_v001.ma'
+                        }
+                        ]}}
+
+    Args:
+        project_name (str): Name of project where to look for.
+
+    Returns:
+        List: List with dicts containing shot names and their work files data..
+    """
+    data = []
+
+
+    # ----- Get animation tasks ----- #
+    mongo_filter = {
+        "type":"workfile",
+        "task_name":"Animation"
+        }
+    anim_tasks = get_docs_by_filter(project_name, mongo_filter)
+    anim_tasks = list(anim_tasks)
+
+    # ----- Get animation tasks ----- #
+    mongo_filter = {
+        "data.entityType": "Shot"
+    }
+    shot_assets = get_docs_by_filter(project_name, mongo_filter)
+    shot_names = [shot_asset["name"] for shot_asset in shot_assets]
+
+    # ----- Put all shot files into their respective dict ----- #
+    for shot_name in shot_names:
+        shot_struct = {}
+        shot_struct[shot_name] = {"files_data": []}
+        for task in anim_tasks:
+            parent_id = task["parent"]
+            parent = get_doc_by_filter(project_name, {"_id":parent_id})
+            parent_name = parent["name"]
+
+            file_struct = {
+                "name": task["filename"],
+                "path": task["files"][0]
+            }
+
+            if shot_name == parent_name:
+                shot_struct[shot_name]["files_data"].append(file_struct)
+
+        data.append(shot_struct)
+
+
+    return data
+
+
+
+
 
 class ListPanel(QtWidgets.QWidget):
     def __init__(self, title="Title", parent=None):
@@ -31,34 +104,44 @@ class ListPanel(QtWidgets.QWidget):
         if items:
             self.list_view.addItems(items)
 
+
 class ProjectListPanel(ListPanel):
-    def __init__(self, dbcon, parent=None):
+    def __init__(self, parent=None):
         super(ProjectListPanel,self).__init__(parent)
-        self._dbcon = dbcon
+
         self.title_label.setText(PROJECTS_TITLE)
+        self.refresh_list()
 
-        shots = get_docs_by_filter("Development", {'data.entityType':'Shot'})
-        for shot in shots:
-            print(shot["name"])
+    def get_project_names(self):
+        project_names = []
+        for project in get_projects():
+            project_names.append(project["name"])
+        return project_names
 
-
-
-
-
-    def get_projects_list(self):
-        projects_name = []
-        for project in self._dbcon.projects():
-            projects_name.append(project["name"])
-        return projects_name
-
-    def fill_project_list(self):
-        self.fill_list(self.get_projects_list())
+    def refresh_list(self):
+        self.fill_list(self.get_project_names())
 
 
 class ShotsListPanel(ListPanel):
     def __init__(self, parent=None):
         super(ShotsListPanel,self).__init__(parent)
         self.title_label.setText(SHOTS_TITLE)
+
+        self.refresh_list("Development")
+
+    def get_shot_names(self, project_name):
+        shot_names = []
+        mongo_filter = {'data.entityType':'Shot'}
+
+        shots = get_docs_by_filter(project_name, mongo_filter)
+        for shot in shots:
+            shot_names.append(shot['name'])
+
+        return shot_names
+
+    def refresh_list(self, project_name):
+        self.fill_list(self.get_shot_names(project_name))
+
 
 class ScenesListPanel(ListPanel):
     def __init__(self, parent=None):
@@ -67,13 +150,11 @@ class ScenesListPanel(ListPanel):
 
 
 
-
 class BatchPublishDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super(BatchPublishDialog, self).__init__(parent)
 
         self.setWindowTitle(WINDOW_TITLE)
-        self._dbcon = AvalonMongoDB()
 
         self._create_widgets()
         self._create_layouts()
@@ -89,12 +170,14 @@ class BatchPublishDialog(QtWidgets.QDialog):
             | QtCore.Qt.WindowCloseButtonHint
         )
 
+        get_shots_data("Development")
+
 
     def _create_widgets(self):
 
 
         # ---- List Widgets ---- #
-        self._projects_list_view = ProjectListPanel(self._dbcon)
+        self._projects_list_view = ProjectListPanel()
         self._shots_list_view = ShotsListPanel()
         self._scenes_list_view = ScenesListPanel()
 
