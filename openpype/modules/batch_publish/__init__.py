@@ -6,10 +6,12 @@ be found by OpenPype discovery.
 
 from .batch_publish_module import (
     BatchPublishSettingsDef,
-    BatchPublishModule
+    BatchPublishAddon
 )
+
+
 
 __all__ = (
     "BatchPublishSettingsDef",
-    "BatchPublishModule"
+    "BatchPublishAddon",
 )

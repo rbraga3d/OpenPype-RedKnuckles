@@ -31,7 +31,7 @@ class BatchPublishSettingsDef(JsonFilesSettingsDef):
         )
 
 
-class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
+class BatchPublishAddon(OpenPypeAddOn, IPluginPaths, ITrayAction):
 
     label = "Batch Publish (beta)"
     name = "batch_publish_addon"
@@ -100,7 +100,7 @@ class BatchPublishModule(OpenPypeAddOn, IPluginPaths, ITrayAction):
         click_group.add_command(cli_main)
 
 
-@click.group(BatchPublishModule.name, help="Example addon dynamic cli commands.")
+@click.group(BatchPublishAddon.name, help="Example addon dynamic cli commands.")
 def cli_main():
     pass
 
@@ -121,6 +121,6 @@ def show_dialog():
     from openpype.tools.utils.lib import qt_app_context
 
     manager = ModulesManager()
-    batch_publish_addon = manager.modules_by_name[BatchPublishModule.name]
+    batch_publish_addon = manager.modules_by_name[BatchPublishAddon.name]
     with qt_app_context():
         batch_publish_addon.show_dialog()
