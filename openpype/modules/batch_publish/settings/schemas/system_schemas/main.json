@@ -1,7 +1,7 @@
 {
     "type": "dict",
-    "key": "example_addon",
-    "label": "Example addon",
+    "key": "batch_publish_addon",
+    "label": "Batch Publish addon",
     "collapsible": true,
     "checkbox_key": "enabled",
     "children": [

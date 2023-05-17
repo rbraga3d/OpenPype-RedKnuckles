@@ -1,6 +1,6 @@
 {
     "project_settings/global": {
         "type": "schema",
-        "name": "batch_publish_cache/main"
+        "name": "batch_publish_addon/main"
     }
 }

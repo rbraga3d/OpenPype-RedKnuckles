@@ -1,7 +1,43 @@
+"""
+The main dialog (BatchPublishAddon) was copied
+from the main Launcher window class.
+.openpype/tools/launcher/window.py
+
+"""
+
+import copy
+import logging
+
 from qtpy import QtWidgets, QtCore, QtGui
 
+from openpype import style
+from openpype import resources
+from openpype.pipeline import AvalonMongoDB
 
-from openpype.style import load_stylesheet
+import qtawesome
+from openpype.tools.launcher.models import (
+    LauncherModel,
+    ProjectModel
+)
+from openpype.tools.launcher.lib import get_action_label
+
+from openpype.tools.launcher.widgets import (
+    ProjectBar,
+    ActionBar,
+    ActionHistory,
+    SlidePageWidget,
+    LauncherAssetsWidget,
+    LauncherTaskWidget
+)
+from openpype.tools.launcher.window import (
+    ProjectsPanel,
+    AssetsPanel
+)
+
+
+from openpype.tools.flickcharm import FlickCharm
+
+
 
 from .views import (
     ProjectsView,
@@ -69,15 +105,25 @@ class ScenesListPanel(ListPanel):
 
 
 class BatchPublishDialog(QtWidgets.QDialog):
+    """Launcher interface"""
+    message_timeout = 5000
+
     def __init__(self, parent=None):
         super(BatchPublishDialog, self).__init__(parent)
 
-        self.setWindowTitle(WINDOW_TITLE)
+        self.log = logging.getLogger(
+            ".".join([__name__, self.__class__.__name__])
+        )
 
-        self._create_widgets()
-        self._create_layouts()
-        self._create_connections()
-        self._set_style_sheet()
+        self.dbcon = AvalonMongoDB()
+
+        self.setWindowTitle(WINDOW_TITLE)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+
+        icon = QtGui.QIcon(resources.get_openpype_icon_filepath())
+        self.setWindowIcon(icon)
+        self.setStyleSheet(style.load_stylesheet())
 
         # Allow minimize
         self.setWindowFlags(
@@ -88,52 +134,186 @@ class BatchPublishDialog(QtWidgets.QDialog):
             | QtCore.Qt.WindowCloseButtonHint
         )
 
+        launcher_model = LauncherModel(self.dbcon)
 
-    def _create_widgets(self):
+        project_panel = ProjectsPanel(launcher_model)
+        asset_panel = AssetsPanel(launcher_model, self.dbcon)
 
-
-        # ---- Panels with views ---- #
-        self._projects_panel = ProjectListPanel()
-        self._shots_panel = ShotsListPanel()
-        self._scenes_panel = ScenesListPanel()
-
-        # ---- Buttons ---- #
-        self._cancel_btn = QtWidgets.QPushButton("Cancel")
-        self._publish_cache_btn = QtWidgets.QPushButton("Publish Cache")
+        page_slider = SlidePageWidget()
+        page_slider.addWidget(project_panel)
+        page_slider.addWidget(asset_panel)
 
 
-    def _create_layouts(self):
+        # actions
+        actions_bar = ActionBar(launcher_model, self.dbcon, self)
 
-        # ---- List Widgets ---- #
-        list_widgets_layout = QtWidgets.QHBoxLayout()
-        list_widgets_layout.addWidget(self._projects_panel)
-        list_widgets_layout.addWidget(self._shots_panel)
-        list_widgets_layout.addWidget(self._scenes_panel)
+        # statusbar
+        message_label = QtWidgets.QLabel(self)
 
-        # ---- Buttons ---- #
-        main_buttons_layout = QtWidgets.QHBoxLayout()
-        main_buttons_layout.addWidget(self._cancel_btn)
-        main_buttons_layout.addWidget(self._publish_cache_btn)
+        action_history = ActionHistory(self)
+        action_history.setStatusTip("Show Action History")
 
+        status_layout = QtWidgets.QHBoxLayout()
+        status_layout.addWidget(message_label, 1)
+        status_layout.addWidget(action_history, 0)
 
-        # ----- Main ----- #
-        main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.addLayout(list_widgets_layout)
-        main_layout.addLayout(main_buttons_layout)
-
-
-    def _create_connections(self):
-        self._projects_panel.view.projectChanged.connect(
-            self._shots_panel.view.model.update_data
+        # Vertically split Pages and Actions
+        body = QtWidgets.QSplitter(self)
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
         )
+        body.setOrientation(QtCore.Qt.Vertical)
+        body.addWidget(page_slider)
+        body.addWidget(actions_bar)
 
-        self._shots_panel.view.shotChanged.connect(
-            self._scenes_panel.view.model.update_data
-        )
+        # Set useful default sizes and set stretch
+        # for the pages so that is the only one that
+        # stretches on UI resize.
+        body.setStretchFactor(0, 10)
+        body.setSizes([580, 160])
 
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(body)
+        layout.addLayout(status_layout)
 
-    def _set_style_sheet(self):
-        self.setStyleSheet(load_stylesheet())
+        message_timer = QtCore.QTimer()
+        message_timer.setInterval(self.message_timeout)
+        message_timer.setSingleShot(True)
 
-    def _on_ok_clicked(self):
-        self.done(1)
+        message_timer.timeout.connect(self._on_message_timeout)
+
+        # signals
+        actions_bar.action_clicked.connect(self.on_action_clicked)
+        action_history.trigger_history.connect(self.on_history_action)
+        launcher_model.project_changed.connect(self.on_project_change)
+        launcher_model.timer_timeout.connect(self._on_refresh_timeout)
+        asset_panel.back_clicked.connect(self.on_back_clicked)
+        asset_panel.session_changed.connect(self.on_session_changed)
+
+        self.resize(520, 740)
+
+        self._page = 0
+
+        self._message_timer = message_timer
+
+        self._launcher_model = launcher_model
+
+        self._message_label = message_label
+        self.project_panel = project_panel
+        self.asset_panel = asset_panel
+        self.actions_bar = actions_bar
+        self.action_history = action_history
+        self.page_slider = page_slider
+
+    def showEvent(self, event):
+        self._launcher_model.set_active(True)
+        self._launcher_model.start_refresh_timer(True)
+
+        super(BatchPublishDialog, self).showEvent(event)
+
+    def _on_refresh_timeout(self):
+        # Stop timer if widget is not visible
+        if not self.isVisible():
+            self._launcher_model.stop_refresh_timer()
+
+    def changeEvent(self, event):
+        if event.type() == QtCore.QEvent.ActivationChange:
+            self._launcher_model.set_active(self.isActiveWindow())
+        super(BatchPublishDialog, self).changeEvent(event)
+
+    def set_page(self, page):
+        current = self.page_slider.currentIndex()
+        if current == page and self._page == page:
+            return
+
+        direction = "right" if page > current else "left"
+        self._page = page
+        self.page_slider.slide_view(page, direction=direction)
+
+    def _on_message_timeout(self):
+        self._message_label.setText("")
+
+    def echo(self, message):
+        self._message_label.setText(str(message))
+        self._message_timer.start()
+        self.log.debug(message)
+
+    def on_session_changed(self):
+        self.filter_actions()
+
+    def discover_actions(self):
+        self.actions_bar.discover_actions()
+
+    def filter_actions(self):
+        self.actions_bar.filter_actions()
+
+    def on_project_change(self, project_name):
+        # Update the Action plug-ins available for the current project
+        self.set_page(1)
+        self.discover_actions()
+
+    def on_back_clicked(self):
+        self._launcher_model.set_project_name(None)
+        self.set_page(0)
+        self.discover_actions()
+
+    def on_action_clicked(self, action):
+        self.echo("Running action: {}".format(get_action_label(action)))
+        self.run_action(action)
+
+    def on_history_action(self, history_data):
+        action, session = history_data
+        app = QtWidgets.QApplication.instance()
+        modifiers = app.keyboardModifiers()
+
+        is_control_down = QtCore.Qt.ControlModifier & modifiers
+        if is_control_down:
+            # Revert to that "session" location
+            self.set_session(session)
+        else:
+            # User is holding control, rerun the action
+            self.run_action(action, session=session)
+
+    def run_action(self, action, session=None):
+        if session is None:
+            session = copy.deepcopy(self.dbcon.Session)
+
+        filtered_session = {
+            key: value
+            for key, value in session.items()
+            if value
+        }
+        # Add to history
+        self.action_history.add_action(action, filtered_session)
+
+        # Process the Action
+        try:
+            action().process(filtered_session)
+        except Exception as exc:
+            self.log.warning("Action launch failed.", exc_info=True)
+            self.echo("Failed: {}".format(str(exc)))
+
+    def set_session(self, session):
+        project_name = session.get("AVALON_PROJECT")
+        asset_name = session.get("AVALON_ASSET")
+        task_name = session.get("AVALON_TASK")
+
+        if project_name:
+            # Force the "in project" view.
+            self.page_slider.slide_view(1, direction="right")
+            index = self.asset_panel.project_bar.project_combobox.findText(
+                project_name
+            )
+            if index >= 0:
+                self.asset_panel.project_bar.project_combobox.setCurrentIndex(
+                    index
+                )
+
+        if asset_name:
+            self.asset_panel.select_asset(asset_name)
+
+        if task_name:
+            # requires a forced refresh first
+            self.asset_panel.select_task_name(task_name)
