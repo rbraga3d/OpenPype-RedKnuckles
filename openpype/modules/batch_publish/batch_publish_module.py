@@ -60,7 +60,7 @@ class BatchPublishAddon(OpenPypeAddOn, IPluginPaths, ITrayAction):
         if self._dialog is not None:
             return
 
-        from .widgets import BatchPublishDialog
+        from .window import BatchPublishDialog
 
         self._dialog = BatchPublishDialog()
 

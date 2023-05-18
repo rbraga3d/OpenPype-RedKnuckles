@@ -1,79 +1,53 @@
-from pprint import pprint
+import os
+from qtpy import QtGui
+import qtawesome
+from openpype import resources
 
-from openpype.client import (
-    get_projects,
-    get_doc_by_filter,
-    get_docs_by_filter,
+ICON_CACHE = {}
+NOT_FOUND = type("NotFound", (object, ), {})
 
-)
 
-def get_project_names():
-    names = []
-    for project_name in get_projects(fields=["name"]):
-        names.append(project_name["name"])
-    return names
+def get_action_icon(action):
+    icon_name = action.icon
+    if not icon_name:
+        return None
 
-def get_shots_data(project_name):
-    """Organize shot names and their work files into dicts:
-    i.e {"name": "SH001",
-        "workfiles": [
-                        {
-                            "name": 'file_name_v001.ma',
-                            "path": '/path/to/file_name_v001.ma'
-                        },
-                        {
-                            "name": 'file_name_v002.ma',
-                            "path": '/path/to/file_name_v001.ma'
-                        }
-                    ]}}
+    global ICON_CACHE
 
-    Args:
-        project_name (str): Name of project where to look for.
+    icon = ICON_CACHE.get(icon_name)
+    if icon is NOT_FOUND:
+        return None
+    elif icon:
+        return icon
 
-    Returns:
-        List: List with dicts containing shot names and their work files data..
-    """
+    icon_path = resources.get_resource(icon_name)
+    if not os.path.exists(icon_path):
+        icon_path = icon_name.format(resources.RESOURCES_DIR)
 
-    shots_data = []
+    if os.path.exists(icon_path):
+        icon = QtGui.QIcon(icon_path)
+        ICON_CACHE[icon_name] = icon
+        return icon
 
-    # ----- Get animation tasks ----- #
-    mongo_filter = {
-        "type":"workfile",
-        "task_name":"Animation"
-        }
+    try:
+        icon_color = getattr(action, "color", None) or "white"
+        icon = qtawesome.icon(
+            "fa.{}".format(icon_name), color=icon_color
+        )
 
-    anim_tasks = get_docs_by_filter(project_name, mongo_filter)
-    anim_tasks = list(anim_tasks)
+    except Exception:
+        ICON_CACHE[icon_name] = NOT_FOUND
+        print("Can't load icon \"{}\"".format(icon_name))
 
-    # ----- Get shot assets names----- #
-    mongo_filter = {
-        "data.entityType": "Shot"
-    }
+    return icon
 
-    shot_assets = get_docs_by_filter(project_name, mongo_filter)
-    shot_names = [shot_asset["name"] for shot_asset in shot_assets]
 
-    # ----- Put all shot files into their respective dict ----- #
-    for shot_name in shot_names:
-        shot_struct = {
-            "name": "",
-            "workfiles": []
-        }
-        shot_struct["name"] = shot_name
+def get_action_label(action):
+    label = getattr(action, "label", None)
+    if not label:
+        return action.name
 
-        for task in anim_tasks:
-            parent_id = task["parent"]
-            parent = get_doc_by_filter(project_name, {"_id":parent_id})
-            parent_name = parent["name"]
-
-            file_struct = {
-                "name": task["filename"],
-                "path": task["files"][0]
-            }
-
-            if shot_name == parent_name:
-                shot_struct["workfiles"].append(file_struct)
-
-        shots_data.append(shot_struct)
-
-    return shots_data
+    label_variant = getattr(action, "label_variant", None)
+    if not label_variant:
+        return label
+    return " ".join([label, label_variant])
