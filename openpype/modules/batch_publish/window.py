@@ -386,21 +386,6 @@ class BatchPublishDialog(QtWidgets.QDialog):
         self.set_page(0)
         self.discover_actions()
 
-    def on_main_clicked(self):
-        session = copy.deepcopy(self.dbcon.Session)
-        project_name = session.get("AVALON_PROJECT")
-        asset_name = session.get("AVALON_ASSET")
-        task_name = session.get("AVALON_TASK")
-        #app, project, asset, task, tools, arguments
-
-        #print("SESSION = ", self.dbcon.Session)
-        #self.run_action(action)
-        self.run_application(app='maya/2023',
-                            project=project_name,
-                            asset=asset_name,
-                            task=task_name,
-                            tools=None,
-                            arguments=["-batch"])
 
     def on_action_clicked(self, action):
         self.echo("Running action: {}".format(get_action_label(action)))
@@ -463,24 +448,13 @@ class BatchPublishDialog(QtWidgets.QDialog):
             self.asset_panel.select_task_name(task_name)
 
 
-    def run_batch_publish(self):
+    def on_main_clicked(self):
+        self._run_batch_publish()
+
+
+    def _run_batch_publish(self):
         import os
-        from pprint import pprint
         import subprocess
-
-        run_script_path = '/home/rafael.braga@redknuckles.co.uk/Documents/DEV/OpenPype/sandbox/run_remote_publish.py'
-        command = "with open('{}', 'r') as f:\n\tscript = f.read()\n\texec(script)".format(run_script_path)
-
-        maya_path = '/usr/autodesk/maya2023/bin/mayapy'
-        args = [maya_path, "-c", command]
-        #maya_env = os.environ.copy()
-
-
-        print(subprocess.Popen([maya_path]))
-
-
-    def run_application(self, app, project, asset, task, tools, arguments):
-        import os
         from openpype.lib.applications import (
             get_app_environments_for_context,
             ApplicationLaunchContext,
@@ -489,38 +463,73 @@ class BatchPublishDialog(QtWidgets.QDialog):
         from openpype.pipeline import install_openpype_plugins
         from openpype.lib import Logger
 
+        # ---- Logger
         log = Logger.get_logger("CLI-Launch")
+
+
+        # ---- Get current session data
+        session = copy.deepcopy(self.dbcon.Session)
+        project_name = session.get("AVALON_PROJECT")
+        asset_name = session.get("AVALON_ASSET")
+        task_name = session.get("AVALON_TASK")
+
+        script_path = r"/home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/teste.py"
+        #command = 'python( "cmds.evalDeferred(\'from openpype.modules.batch_publish.teste import run;run()\')" )'
+        command = 'python("cmds.evalDeferred(\"cmds.polySphere()\")")'
+        # ---- App info
+        app_name = "maya/2023"
+        app_args = [
+            #"-batch",
+            "-file" # Must be the last
+            ]
+
+        maya_path = '/usr/autodesk/maya2023/bin/mayapy'
+        commands = "/home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/teste.py"
+        args = [
+            maya_path,
+            "-c",
+            'from openpype.modules.batch_publish.teste import run;cmds.evalDeferred(run)'
+        ]
+
+
+
 
         install_openpype_plugins()
         app_manager = ApplicationManager()
-        print("All valid apps {}".format(list(app_manager.applications.keys())))
 
-        if not app_manager.applications.get(app):
-            log.warning("App not found: {}".format(app))
+
+        if not app_manager.applications.get(app_name):
+            log.warning("App not found: {}".format(app_name))
             log.info("All valid apps {}".format(list(app_manager.applications.keys())))
             return
 
-        if all([project, asset, task, app]):
+        if all([project_name, asset_name, task_name, app_name]):
             env = get_app_environments_for_context(
-                project, asset, task, app
+                project_name, asset_name, task_name, app_name
             )
         else:
             env = os.environ.copy()
 
-        app = app_manager.applications[app]
-        executable = app.find_executable()
+        # Add this to be detected when workfile was opened
+
 
         data = {
-            "project_name": project,
-            "asset_name": asset,
-            "task_name": task,
-            "app_args": arguments,
+            "project_name": project_name,
+            "asset_name": asset_name,
+            "task_name": task_name,
+            #"app_args": app_args,
             "env": env,
         }
+
+        # ---- Launch application with all
+        # required environment data
+        app = app_manager.applications[app_name]
+        executable = app.find_executable()
+
         context = ApplicationLaunchContext(
             app, executable, **data,
         )
 
-        context.launch()
-
+        print(subprocess.Popen(args, env=env))
+        #context.launch()
         log.info("Application launched ...")
