@@ -268,6 +268,7 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
         # Main action button
         main_action_btn = QtWidgets.QPushButton("Batch Publish on Farm")
+        main_action_btn.setFixedHeight(50)
 
         # actions
         actions_bar = ActionBar(launcher_model, self.dbcon, self)
@@ -473,18 +474,9 @@ class BatchPublishDialog(QtWidgets.QDialog):
         asset_name = session.get("AVALON_ASSET")
         task_name = session.get("AVALON_TASK")
 
-        script_path = r"/home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/teste.py"
-        #command = 'python( "cmds.evalDeferred(\'from openpype.modules.batch_publish.teste import run;run()\')" )'
-        command = 'python("cmds.evalDeferred(\"cmds.polySphere()\")")'
         # ---- App info
         app_name = "maya/2023"
-        app_args = [
-            #"-batch",
-            "-file" # Must be the last
-            ]
-
         maya_path = '/usr/autodesk/maya2023/bin/mayapy'
-        commands = "/home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/teste.py"
         args = [
             maya_path,
             "-c",
@@ -529,6 +521,7 @@ class BatchPublishDialog(QtWidgets.QDialog):
         context = ApplicationLaunchContext(
             app, executable, **data,
         )
+
 
         print(subprocess.Popen(args, env=env))
         #context.launch()
