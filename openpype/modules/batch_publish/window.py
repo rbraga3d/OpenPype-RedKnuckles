@@ -2,230 +2,36 @@ import copy
 import logging
 
 from qtpy import QtWidgets, QtCore, QtGui
+import qtawesome
 
 from openpype import style
 from openpype import resources
 from openpype.pipeline import AvalonMongoDB
 
-import qtawesome
-from .models import (
+from openpype.tools.flickcharm import FlickCharm
+
+# ----- Imported from launcher app ----- #
+from openpype.tools.launcher.models import (
     LauncherModel,
-    ProjectModel
+
 )
-from .lib import get_action_label
-from .widgets import (
-    ProjectBar,
+from openpype.tools.launcher.lib import get_action_label
+from openpype.tools.launcher.widgets import (
     ActionBar,
     ActionHistory,
     SlidePageWidget,
-    LauncherAssetsWidget,
-    LauncherTaskWidget
+
+)
+from openpype.tools.launcher.window import (
+    ProjectsPanel,
+    AssetsPanel
+
 )
 
-from openpype.tools.flickcharm import FlickCharm
 
-
-class ProjectIconView(QtWidgets.QListView):
-    """Styled ListView that allows to toggle between icon and list mode.
-
-    Toggling between the two modes is done by Right Mouse Click.
-
-    """
-
-    IconMode = 0
-    ListMode = 1
-
-    def __init__(self, parent=None, mode=ListMode):
-        super(ProjectIconView, self).__init__(parent=parent)
-
-        # Workaround for scrolling being super slow or fast when
-        # toggling between the two visual modes
-        self.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
-        self.setObjectName("IconView")
-
-        self._mode = None
-        self.set_mode(mode)
-
-    def set_mode(self, mode):
-        if mode == self._mode:
-            return
-
-        self._mode = mode
-
-        if mode == self.IconMode:
-            self.setViewMode(QtWidgets.QListView.IconMode)
-            self.setResizeMode(QtWidgets.QListView.Adjust)
-            self.setWrapping(True)
-            self.setWordWrap(True)
-            self.setGridSize(QtCore.QSize(151, 90))
-            self.setIconSize(QtCore.QSize(50, 50))
-            self.setSpacing(0)
-            self.setAlternatingRowColors(False)
-
-            self.setProperty("mode", "icon")
-            self.style().polish(self)
-
-            self.verticalScrollBar().setSingleStep(30)
-
-        elif self.ListMode:
-            self.setProperty("mode", "list")
-            self.style().polish(self)
-
-            self.setViewMode(QtWidgets.QListView.ListMode)
-            self.setResizeMode(QtWidgets.QListView.Adjust)
-            self.setWrapping(False)
-            self.setWordWrap(False)
-            self.setIconSize(QtCore.QSize(20, 20))
-            self.setGridSize(QtCore.QSize(100, 25))
-            self.setSpacing(0)
-            self.setAlternatingRowColors(False)
-
-            self.verticalScrollBar().setSingleStep(33.33)
-
-    def mousePressEvent(self, event):
-        if event.button() == QtCore.Qt.RightButton:
-            self.set_mode(int(not self._mode))
-        return super(ProjectIconView, self).mousePressEvent(event)
-
-
-class ProjectsPanel(QtWidgets.QWidget):
-    """Projects Page"""
-    def __init__(self, launcher_model, parent=None):
-        super(ProjectsPanel, self).__init__(parent=parent)
-
-        view = ProjectIconView(parent=self)
-        view.setSelectionMode(QtWidgets.QListView.NoSelection)
-        flick = FlickCharm(parent=self)
-        flick.activateOn(view)
-        model = ProjectModel(launcher_model)
-        view.setModel(model)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(view)
-
-        view.clicked.connect(self.on_clicked)
-
-        self._model = model
-        self.view = view
-        self._launcher_model = launcher_model
-
-    def on_clicked(self, index):
-        if index.isValid():
-            project_name = index.data(QtCore.Qt.DisplayRole)
-            self._launcher_model.set_project_name(project_name)
-
-
-class AssetsPanel(QtWidgets.QWidget):
-    """Assets page"""
-    back_clicked = QtCore.Signal()
-    session_changed = QtCore.Signal()
-
-    def __init__(self, launcher_model, dbcon, parent=None):
-        super(AssetsPanel, self).__init__(parent=parent)
-
-        self.dbcon = dbcon
-
-        # Project bar
-        btn_back_icon = qtawesome.icon("fa.angle-left", color="white")
-        btn_back = QtWidgets.QPushButton(self)
-        btn_back.setIcon(btn_back_icon)
-
-        project_bar = ProjectBar(launcher_model, self)
-
-        project_bar_layout = QtWidgets.QHBoxLayout()
-        project_bar_layout.setContentsMargins(0, 0, 0, 0)
-        project_bar_layout.setSpacing(4)
-        project_bar_layout.addWidget(btn_back)
-        project_bar_layout.addWidget(project_bar)
-
-        # Assets widget
-        assets_widget = LauncherAssetsWidget(
-            launcher_model, dbcon=self.dbcon, parent=self
-        )
-        # Make assets view flickable
-        assets_widget.activate_flick_charm()
-
-        # Tasks widget
-        tasks_widget = LauncherTaskWidget(launcher_model, self.dbcon, self)
-
-
-        # Body
-        body = QtWidgets.QSplitter(self)
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-        body.setOrientation(QtCore.Qt.Horizontal)
-        body.addWidget(assets_widget)
-        body.addWidget(tasks_widget)
-        body.setStretchFactor(0, 100)
-        body.setStretchFactor(1, 65)
-
-        # main layout
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addLayout(project_bar_layout)
-        layout.addWidget(body)
-
-        # signals
-        launcher_model.project_changed.connect(self._on_project_changed)
-        assets_widget.selection_changed.connect(self._on_asset_changed)
-        assets_widget.refreshed.connect(self._on_asset_changed)
-        tasks_widget.task_changed.connect(self._on_task_change)
-
-        btn_back.clicked.connect(self.back_clicked)
-
-        self.project_bar = project_bar
-        self.assets_widget = assets_widget
-        self._tasks_widget = tasks_widget
-        self._btn_back = btn_back
-
-        self._launcher_model = launcher_model
-
-    def get_tasks_widget(self):
-        return self._tasks_widget
-
-    def select_asset(self, asset_name):
-        self.assets_widget.select_asset_by_name(asset_name)
-
-    def showEvent(self, event):
-        super(AssetsPanel, self).showEvent(event)
-
-        # Change size of a btn
-        # WARNING does not handle situation if combobox is bigger
-        btn_size = self.project_bar.height()
-        self._btn_back.setFixedSize(QtCore.QSize(btn_size, btn_size))
-
-    def select_task_name(self, task_name):
-        self._on_asset_changed()
-        self._tasks_widget.select_task_name(task_name)
-
-    def _on_project_changed(self):
-        self.session_changed.emit()
-
-    def _on_asset_changed(self):
-        """Callback on asset selection changed
-
-        This updates the task view.
-        """
-
-        # Check asset on current index and selected assets
-        asset_id = self.assets_widget.get_selected_asset_id()
-        asset_name = self.assets_widget.get_selected_asset_name()
-
-        self.dbcon.Session["AVALON_TASK"] = None
-        self.dbcon.Session["AVALON_ASSET"] = asset_name
-
-        self.session_changed.emit()
-
-        self._tasks_widget.set_asset_id(asset_id)
-
-    def _on_task_change(self):
-        task_name = self._tasks_widget.get_selected_task_name()
-        self.dbcon.Session["AVALON_TASK"] = task_name
-        self.session_changed.emit()
+# ---------------------------------------#
+from .app import BatchPublish
+from .log_console.widgets import ConsoleWidget, LogThread
 
 
 class BatchPublishDialog(QtWidgets.QDialog):
@@ -234,6 +40,7 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(BatchPublishDialog, self).__init__(parent)
+
 
         self.log = logging.getLogger(
             ".".join([__name__, self.__class__.__name__])
@@ -275,6 +82,8 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
         # statusbar
         message_label = QtWidgets.QLabel(self)
+
+
 
         action_history = ActionHistory(self)
         action_history.setStatusTip("Show Action History")
@@ -320,6 +129,8 @@ class BatchPublishDialog(QtWidgets.QDialog):
         asset_panel.back_clicked.connect(self.on_back_clicked)
         asset_panel.session_changed.connect(self.on_session_changed)
 
+
+
         self.resize(520, 740)
 
         self._page = 0
@@ -334,6 +145,9 @@ class BatchPublishDialog(QtWidgets.QDialog):
         self.actions_bar = actions_bar
         self.action_history = action_history
         self.page_slider = page_slider
+
+
+
 
     def showEvent(self, event):
         self._launcher_model.set_active(True)
@@ -454,75 +268,6 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
 
     def _run_batch_publish(self):
-        import os
-        import subprocess
-        from openpype.lib.applications import (
-            get_app_environments_for_context,
-            ApplicationLaunchContext,
-            ApplicationManager
-        )
-        from openpype.pipeline import install_openpype_plugins
-        from openpype.lib import Logger
 
-        # ---- Logger
-        log = Logger.get_logger("CLI-Launch")
-
-
-        # ---- Get current session data
-        session = copy.deepcopy(self.dbcon.Session)
-        project_name = session.get("AVALON_PROJECT")
-        asset_name = session.get("AVALON_ASSET")
-        task_name = session.get("AVALON_TASK")
-
-        # ---- App info
-        app_name = "maya/2023"
-        maya_path = '/usr/autodesk/maya2023/bin/mayapy'
-        args = [
-            maya_path,
-            "-c",
-            'from openpype.modules.batch_publish.teste import run;cmds.evalDeferred(run)'
-        ]
-
-
-
-
-        install_openpype_plugins()
-        app_manager = ApplicationManager()
-
-
-        if not app_manager.applications.get(app_name):
-            log.warning("App not found: {}".format(app_name))
-            log.info("All valid apps {}".format(list(app_manager.applications.keys())))
-            return
-
-        if all([project_name, asset_name, task_name, app_name]):
-            env = get_app_environments_for_context(
-                project_name, asset_name, task_name, app_name
-            )
-        else:
-            env = os.environ.copy()
-
-        # Add this to be detected when workfile was opened
-
-
-        data = {
-            "project_name": project_name,
-            "asset_name": asset_name,
-            "task_name": task_name,
-            #"app_args": app_args,
-            "env": env,
-        }
-
-        # ---- Launch application with all
-        # required environment data
-        app = app_manager.applications[app_name]
-        executable = app.find_executable()
-
-        context = ApplicationLaunchContext(
-            app, executable, **data,
-        )
-
-
-        print(subprocess.Popen(args, env=env))
-        #context.launch()
-        log.info("Application launched ...")
+        batch_publish_app = BatchPublish()
+        batch_publish_app.publish(self.dbcon.Session)

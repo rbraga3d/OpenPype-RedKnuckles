@@ -22,7 +22,7 @@ def exe_script():
 
 def on_published(context):
       print("AEEEEEEEEEEEEEEEEEEEEEEEEE PUBLICADO A DESGRACA!")
-      pyblish.api.deregister_callback(on_published)
+      pyblish.api.deregister_callback("published", on_published)
 
 def run():
     last_workfile = os.environ.get('AVALON_LAST_WORKFILE')

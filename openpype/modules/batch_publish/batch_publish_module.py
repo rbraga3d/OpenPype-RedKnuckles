@@ -64,6 +64,8 @@ class BatchPublishAddon(OpenPypeAddOn, IPluginPaths, ITrayAction):
 
         self._dialog = BatchPublishDialog()
 
+
+
     def show_dialog(self):
         """Show dialog with connected modules.
 
@@ -95,6 +97,7 @@ class BatchPublishAddon(OpenPypeAddOn, IPluginPaths, ITrayAction):
         return {
             "publish": [os.path.join(current_dir, "plugins", "publish")]
         }
+
 
     def cli(self, click_group):
         click_group.add_command(cli_main)
