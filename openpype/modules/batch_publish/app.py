@@ -53,8 +53,7 @@ class BatchPublish:
         # maya is open and idle
         mayapy_path = self._mayapy_path
         command = "from openpype.modules.batch_publish.hosts.maya import Publisher; \
-        publisher = Publisher(); \
-        cmds.evalDeferred(publisher.publish_on_farm())"
+        cmds.evalDeferred(Publisher().publish_on_farm)"
 
         args = (
             mayapy_path,
