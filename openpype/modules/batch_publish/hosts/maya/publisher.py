@@ -1,4 +1,5 @@
 import os
+import socket
 
 import maya.standalone
 maya.standalone.initialize()
@@ -14,23 +15,57 @@ from openpype.pipeline.load import (
     update_container
 )
 
+from ...constants import(
+    PUBLISH_FAILED,
+    PUBLISH_SUCCESS
+)
+
+
 class Publisher:
 
     def __init__(self):
 
         self._log = Logger.get_logger(__name__)
         self._register_callbacks()
+        self._socket_client = None
+
+
+    def _init_callbacks_client(self):
+        host = socket.gethostbyname("localhost")
+        port = 9999
+
+        socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_client.connect((host, port))
+
+        self._socket_client = socket_client
+
+        #socket_client.sendall("-------------SOCKET - PUBLICADO!".encode())
+
+        #socket_client.close()
+
+    def send_message_to_server(self, message, log=False):
+        #TODO: Refactor - Convert to send_data_to_server
+        msg = message.encode()
+        self._socket_client.sendall(msg)
+
+        if log:
+            self._log.info(message)
+
 
     def _register_callbacks(self):
         pyblish.api.register_callback("published", self._on_published)
+        pyblish.api.register_callback("publish_error", self._on_publish_error)
 
-    def _deregister_callbacks(self):
-        pyblish.api.deregister_callback("published", self._on_published)
 
     def _on_published(self, context):
-        self._log.info("Published!")
-        self._deregister_callbacks()
+        self._log.info("Published! Sent to farm.")
+        self.send_message_to_server(PUBLISH_SUCCESS)
+        pyblish.api.deregister_all_callbacks()
 
+    def _on_publish_error(self, context, error_message):
+        print("ERROR_MESSAGE = ", error_message)
+        msg_error = "{} - {}".format(PUBLISH_FAILED, error_message)
+        self.send_message_to_server(msg_error)
 
     def _get_instances(self):
         """Return all instances from scene.
@@ -116,25 +151,33 @@ class Publisher:
         cmds.file(last_workfile, o=True, force=True)
 
     def _prepare_scene(self):
-        self._log.info("Preparing scene -> STARTING...")
-        self._log.info("Preparing scene -> Updating outdated assets to latest versions...")
+        msg = "Preparing scene -> STARTING..."
+        self.send_message_to_server(msg)
+
+        msg = "Preparing scene -> Updating outdated assets to latest versions..."
+        self.send_message_to_server(msg)
         self._update_assets_to_latest()
 
-        self._log.info("Preparing scene -> Enabling instances farm attribute...")
+        msg = "Preparing scene -> Enabling instances farm attribute..."
+        self.send_message_to_server(msg)
         self._enable_instances_farm_attribute()
 
-        self._log.info("Preparing scene -> Fixing instances frame ranges...")
+        msg = "Preparing scene -> Fixing instances frame ranges..."
+        self.send_message_to_server(msg)
         self._fix_instances_frame_range()
 
-        self._log.info("Preparing scene -> DONE!")
+        msg = "Preparing scene -> DONE! \n"
+        self.send_message_to_server(msg)
 
     def publish_on_farm(self):
-
+        self._init_callbacks_client()
         self._open_last_workfile()
         self._prepare_scene()
 
 
         def _remote_publish():
             remote_publish(self._log, raise_error=True)
+
+        self.send_message_to_server("Sending to farm...\n")
 
         cmds.evalDeferred(_remote_publish)

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import copy
+import socket
 
 from openpype.lib.applications import (
     get_app_environments_for_context,
@@ -18,9 +19,11 @@ class BatchPublish:
         self._mayapy_path = "/usr/autodesk/maya2023/bin/mayapy"
 
 
-    def publish(self, session):
-        """Main method responsable for publishing to farm """
 
+
+    def publish(self, session):
+        """Main method responsable for oepning scene in mayapy
+        and publishing to farm """
 
         # ----- Get current session data ----- #
         session = copy.deepcopy(session)
@@ -60,4 +63,5 @@ class BatchPublish:
             "-c",
             command
         )
+
         subprocess.Popen(args, env=env)

@@ -1,42 +1,34 @@
 import copy
 import logging
+import socket
 
-from qtpy import QtWidgets, QtCore, QtGui
 import qtawesome
+from qtpy import QtCore, QtGui, QtWidgets
 
-from openpype import style
-from openpype import resources
+from openpype import resources, style
 from openpype.pipeline import AvalonMongoDB
-
 from openpype.tools.flickcharm import FlickCharm
-
 # ----- Imported from launcher app ----- #
-from openpype.tools.launcher.models import (
-    LauncherModel,
-
-)
 from openpype.tools.launcher.lib import get_action_label
-from openpype.tools.launcher.widgets import (
-    ActionBar,
-    ActionHistory,
-    SlidePageWidget,
-
-)
-from openpype.tools.launcher.window import (
-    ProjectsPanel,
-    AssetsPanel
-
-)
-
+from openpype.tools.launcher.models import LauncherModel
+from openpype.tools.launcher.widgets import (ActionBar, ActionHistory,
+                                             SlidePageWidget)
+from openpype.tools.launcher.window import AssetsPanel, ProjectsPanel
 
 # ---------------------------------------#
 from .app import BatchPublish
 from .log_console.widgets import ConsoleWidget, LogThread
+#rom .widgets import ButtonSpinner
+from .constants import(
+    PUBLISH_FAILED,
+    PUBLISH_SUCCESS
+)
+
 
 
 class BatchPublishDialog(QtWidgets.QDialog):
     """Launcher interface"""
-    message_timeout = 5000
+    message_timeout = 50000
 
     def __init__(self, parent=None):
         super(BatchPublishDialog, self).__init__(parent)
@@ -69,6 +61,7 @@ class BatchPublishDialog(QtWidgets.QDialog):
         project_panel = ProjectsPanel(launcher_model)
         asset_panel = AssetsPanel(launcher_model, self.dbcon)
 
+
         page_slider = SlidePageWidget()
         page_slider.addWidget(project_panel)
         page_slider.addWidget(asset_panel)
@@ -76,21 +69,19 @@ class BatchPublishDialog(QtWidgets.QDialog):
         # Main action button
         main_action_btn = QtWidgets.QPushButton("Batch Publish on Farm")
         main_action_btn.setFixedHeight(50)
+        main_action_btn.setEnabled(False)
+        main_action_layout = QtWidgets.QVBoxLayout()
+        main_action_layout.addWidget(main_action_btn)
 
         # actions
         actions_bar = ActionBar(launcher_model, self.dbcon, self)
 
         # statusbar
-        message_label = QtWidgets.QLabel(self)
+        message_label = QtWidgets.QLabel("Please select an animation task to publish")
 
-
-
-        action_history = ActionHistory(self)
-        action_history.setStatusTip("Show Action History")
 
         status_layout = QtWidgets.QHBoxLayout()
         status_layout.addWidget(message_label, 1)
-        status_layout.addWidget(action_history, 0)
 
         # Vertically split Pages and Actions
         body = QtWidgets.QSplitter(self)
@@ -101,7 +92,6 @@ class BatchPublishDialog(QtWidgets.QDialog):
         )
         body.setOrientation(QtCore.Qt.Vertical)
         body.addWidget(page_slider)
-        body.addWidget(main_action_btn)
         #body.addWidget(actions_bar)
 
         # Set useful default sizes and set stretch
@@ -112,6 +102,7 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(body)
+        layout.addLayout(main_action_layout)
         layout.addLayout(status_layout)
 
         message_timer = QtCore.QTimer()
@@ -123,7 +114,6 @@ class BatchPublishDialog(QtWidgets.QDialog):
         # signals
         main_action_btn.clicked.connect(self.on_main_clicked)
         actions_bar.action_clicked.connect(self.on_action_clicked)
-        action_history.trigger_history.connect(self.on_history_action)
         launcher_model.project_changed.connect(self.on_project_change)
         launcher_model.timer_timeout.connect(self._on_refresh_timeout)
         asset_panel.back_clicked.connect(self.on_back_clicked)
@@ -143,10 +133,40 @@ class BatchPublishDialog(QtWidgets.QDialog):
         self.project_panel = project_panel
         self.asset_panel = asset_panel
         self.actions_bar = actions_bar
-        self.action_history = action_history
         self.page_slider = page_slider
+        self.main_action_button = main_action_btn
 
 
+
+    def _init_callbacks_server(self):
+        host = socket.gethostbyname("localhost")
+        port = 9999
+
+        socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_server.bind((host, port))
+        socket_server.listen(5)
+
+        conn, adress = socket_server.accept()
+        while True:
+            data = conn.recv(2048)
+            message = data.decode()
+            self.echo(message)
+            if message == PUBLISH_SUCCESS:
+                self._on_publish_success()
+                break;
+            elif message in PUBLISH_FAILED:
+                self._on_publish_fail()
+                break;
+
+
+        conn.close()
+        socket_server.close()
+
+    def _on_publish_success(self):
+        self.echo("Published on farm!")
+
+    def _on_publish_fail(self):
+        self.echo("Publish failed!")
 
 
     def showEvent(self, event):
@@ -180,9 +200,11 @@ class BatchPublishDialog(QtWidgets.QDialog):
     def echo(self, message):
         self._message_label.setText(str(message))
         self._message_timer.start()
+        self._message_label.repaint()
         self.log.debug(message)
 
     def on_session_changed(self):
+        self._toggle_main_action_button()
         self.filter_actions()
 
     def discover_actions(self):
@@ -190,6 +212,12 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
     def filter_actions(self):
         self.actions_bar.filter_actions()
+
+    def _toggle_main_action_button(self):
+        anim_task = self.dbcon.Session.get("AVALON_TASK") or ""
+
+        is_animation_selected = "animation" in anim_task.lower()
+        self.main_action_button.setEnabled(is_animation_selected)
 
     def on_project_change(self, project_name):
         # Update the Action plug-ins available for the current project
@@ -206,18 +234,10 @@ class BatchPublishDialog(QtWidgets.QDialog):
         self.echo("Running action: {}".format(get_action_label(action)))
         self.run_action(action)
 
-    def on_history_action(self, history_data):
-        action, session = history_data
-        app = QtWidgets.QApplication.instance()
-        modifiers = app.keyboardModifiers()
 
-        is_control_down = QtCore.Qt.ControlModifier & modifiers
-        if is_control_down:
-            # Revert to that "session" location
-            self.set_session(session)
-        else:
-            # User is holding control, rerun the action
-            self.run_action(action, session=session)
+    def on_main_clicked(self):
+        self.echo("Running: Batch publish on farm...")
+        self._run_batch_publish()
 
     def run_action(self, action, session=None):
         if session is None:
@@ -263,11 +283,12 @@ class BatchPublishDialog(QtWidgets.QDialog):
             self.asset_panel.select_task_name(task_name)
 
 
-    def on_main_clicked(self):
-        self._run_batch_publish()
-
-
     def _run_batch_publish(self):
-
-        batch_publish_app = BatchPublish()
-        batch_publish_app.publish(self.dbcon.Session)
+        try:
+            batch_publish_app = BatchPublish()
+            batch_publish_app.publish(self.dbcon.Session)
+            self._init_callbacks_server()
+        except Exception as exc:
+            pass
+            self.log.error("Batch published failed.", exc_info=True)
+            self.echo("Failed: {}".format(str(exc)))
