@@ -42,9 +42,7 @@ class Publisher:
 
         self._socket_client = socket_client
 
-        #socket_client.sendall("-------------SOCKET - PUBLICADO!".encode())
 
-        #socket_client.close()
 
     def send_message_to_server(self, message, log=False):
         #TODO: Refactor - Convert to send_data_to_server
@@ -146,12 +144,9 @@ class Publisher:
     def _add_farm_attr_to_all(self):
         ...
 
-    def _open_last_workfile(self):
-        last_workfile = os.environ.get('AVALON_LAST_WORKFILE')
+    def _set_project(self):
         workdir = os.environ.get('AVALON_WORKDIR')
-
         cmds.workspace(workdir, o=True )
-        cmds.file(last_workfile, o=True, force=True)
 
     def _prepare_scene(self):
         msg = "Preparing scene -> STARTING..."
@@ -169,17 +164,27 @@ class Publisher:
         self.send_message_to_server(msg)
         self._fix_instances_frame_range()
 
-        msg = "Preparing scene -> DONE! \n"
-        self.send_message_to_server(msg)
 
     def publish_on_farm(self):
         self._init_callbacks_client()
-        self._open_last_workfile()
+        self._set_project()
         self._prepare_scene()
 
+        #TODO: Exceptions to plugins that depends on mayas viewport
+
+        msg = "Running validations...\n"
+        self.send_message_to_server(msg)
 
         def _remote_publish():
             remote_publish(self._log, raise_error=True)
 
-        self.send_message_to_server("Sending to farm...\n")
+        # Run remote publish
         cmds.evalDeferred(_remote_publish)
+
+
+# fael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/.venv/lib/python3.9/site-packages/pyblish/plugins
+# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/hosts/maya/plugins/publish
+# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/plugins/publish
+# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/plugins/publish
+# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/deadline/plugins/publish
+# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/ftrack/plugins/publish

@@ -28,6 +28,7 @@ from .constants import(
 
 class BatchPublishDialog(QtWidgets.QDialog):
     """Launcher interface"""
+    MAIN_ACTION_BUTTON_LABEL = "Batch Publish on Farm"
     message_timeout = 50000
 
     def __init__(self, parent=None):
@@ -153,9 +154,11 @@ class BatchPublishDialog(QtWidgets.QDialog):
             self.echo(message)
             if message == PUBLISH_SUCCESS:
                 self._on_publish_success()
+                conn.close()
                 break;
             elif message in PUBLISH_FAILED:
                 self._on_publish_fail()
+                conn.close()
                 break;
 
 
@@ -164,9 +167,11 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
     def _on_publish_success(self):
         self.echo("Published on farm!")
+        self._set_main_button_state(True)
 
     def _on_publish_fail(self):
         self.echo("Publish failed!")
+        self._set_main_button_state(True)
 
 
     def showEvent(self, event):
@@ -235,6 +240,13 @@ class BatchPublishDialog(QtWidgets.QDialog):
         self.run_action(action)
 
 
+    def _set_main_button_state(self, enabled, text=None):
+        self.main_action_button.setEnabled(enabled)
+        button_text = text or self.MAIN_ACTION_BUTTON_LABEL
+        self.main_action_button.setText(button_text)
+        self.main_action_button.repaint()
+
+
     def on_main_clicked(self):
         self.echo("Running: Batch publish on farm...")
         self._run_batch_publish()
@@ -285,10 +297,11 @@ class BatchPublishDialog(QtWidgets.QDialog):
 
     def _run_batch_publish(self):
         try:
+            self._set_main_button_state(False, "Please wait...")
             batch_publish_app = BatchPublish()
             batch_publish_app.publish(self.dbcon.Session)
             self._init_callbacks_server()
         except Exception as exc:
-            pass
-            self.log.error("Batch published failed.", exc_info=True)
+            self.log.error("Run Batch publish failed.", exc_info=True)
             self.echo("Failed: {}".format(str(exc)))
+            self._set_main_button_state(True)

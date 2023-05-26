@@ -48,6 +48,11 @@ class ExtractPlayblast(publish.Extractor):
         self.log.debug("playblast path  {}".format(path))
 
     def process(self, instance):
+
+        if lib.IS_HEADLESS:
+            self.log.info("Running in headless mode, skipping exctract_playblast...")
+            return
+
         self.log.info("Extracting capture..")
 
         # get scene fps
