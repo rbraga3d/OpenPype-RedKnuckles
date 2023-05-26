@@ -1,7 +1,5 @@
 import os
-import subprocess
 import copy
-import socket
 
 from openpype.lib.applications import (
     get_app_environments_for_context,
@@ -16,13 +14,10 @@ class BatchPublish:
     def __init__(self):
         self._log = Logger.get_logger("Batch-Publish-Module")
         self._app_name = "maya/2023"
-        self._mayapy_path = "/usr/autodesk/maya2023/bin/mayapy"
-
-
 
 
     def publish(self, session):
-        """Main method responsable for oepning scene in mayapy
+        """Main method responsable for oepning scene in mayabatch
         and publishing to farm """
 
         # ----- Get current session data ----- #
@@ -30,11 +25,10 @@ class BatchPublish:
         project_name = session.get("AVALON_PROJECT")
         asset_name = session.get("AVALON_ASSET")
         task_name = session.get("AVALON_TASK")
-
         app_name = self._app_name
 
-        install_openpype_plugins()
 
+        install_openpype_plugins()
         app_manager = ApplicationManager()
 
 
@@ -50,18 +44,27 @@ class BatchPublish:
         else:
             env = os.environ.copy()
 
-        # ----- Run MayaPy ---- #
-        # It will run MayaPy with proper environments
-        # and then a command from 'args' list will be executed after
-        # maya is open and idle
-        mayapy_path = self._mayapy_path
-        command = "from openpype.modules.batch_publish.hosts.maya import Publisher; \
-        cmds.evalDeferred(Publisher().publish_on_farm)"
 
-        args = (
-            mayapy_path,
-            "-c",
-            command
+        app = app_manager.applications[app_name]
+        executable = app.find_executable()
+
+
+        command = 'python\(\\"from\ openpype.modules.batch_publish.hosts.maya\ import\ on_maya_startup\\"\)'
+        arguments = [
+            "-batch",
+            "-command",
+            "'{}'".format(command),
+            "-file"
+        ]
+        data = {
+                    "project_name": project_name,
+                    "asset_name": asset_name,
+                    "task_name": task_name,
+                    "app_args": arguments,
+                    "env": env,
+                }
+        context = ApplicationLaunchContext(
+            app, executable, **data,
         )
 
-        subprocess.Popen(args, env=env)
+        context.launch()

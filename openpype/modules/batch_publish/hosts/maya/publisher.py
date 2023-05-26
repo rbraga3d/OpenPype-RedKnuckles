@@ -1,8 +1,11 @@
 import os
 import socket
 
-import maya.standalone
-maya.standalone.initialize()
+# from pymel.core import * # Same as maya.standalone.initialize() but
+#                          # with more funcionalities when running mayapy
+#                          # More detailes on:
+#                          # https://help.autodesk.com/cloudhelp/2017/ENU/Maya-Tech-Docs/PyMel/standalone.html
+
 import maya.cmds as cmds
 
 import pyblish.api
@@ -179,5 +182,4 @@ class Publisher:
             remote_publish(self._log, raise_error=True)
 
         self.send_message_to_server("Sending to farm...\n")
-
         cmds.evalDeferred(_remote_publish)
