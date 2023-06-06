@@ -497,12 +497,13 @@ def remote_publish(log, close_plugin_name=None, raise_error=False):
         if result["error"]:
             error_message = error_format.format(**result)
             log.error(error_message)
+            context = pyblish.api.Context()
             if close_plugin:  # close host app explicitly after error
-                context = pyblish.api.Context()
                 close_plugin().process(context)
             if raise_error:
                 # Fatal Error is because of Deadline
                 error_message = "Fatal Error: " + error_format.format(**result)
+                pyblish.api.emit("publish_error", context=context, error_message=error_message)
                 raise RuntimeError(error_message)
 
 
