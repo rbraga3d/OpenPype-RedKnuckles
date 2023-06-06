@@ -170,7 +170,6 @@ class Publisher:
         self._set_project()
         self._prepare_scene()
 
-        #TODO: Exceptions to plugins that depends on mayas viewport
 
         msg = "Running validations...\n"
         self.send_message_to_server(msg)
@@ -180,11 +179,3 @@ class Publisher:
 
         # Run remote publish
         cmds.evalDeferred(_remote_publish)
-
-
-# fael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/.venv/lib/python3.9/site-packages/pyblish/plugins
-# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/hosts/maya/plugins/publish
-# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/plugins/publish
-# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/batch_publish/plugins/publish
-# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/deadline/plugins/publish
-# /home/rafael.braga@redknuckles.co.uk/Documents/DEV/Pipeline/OpenPype-RedKnuckles/openpype/modules/ftrack/plugins/publish
