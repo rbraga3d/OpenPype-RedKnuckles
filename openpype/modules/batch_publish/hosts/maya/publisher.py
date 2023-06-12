@@ -164,11 +164,27 @@ class Publisher:
         self.send_message_to_server(msg)
         self._fix_instances_frame_range()
 
+    def _config_plugin_paths(self):
+        """ Deregister maya pyblish plugins """
+
+
+        registered_paths = pyblish.api.registered_paths()
+        maya_plugin_path = ""
+
+        for path in registered_paths:
+            if "/maya/plugins" in path:
+                maya_plugin_path = path
+
+        pyblish.api.deregister_plugin_path(maya_plugin_path)
+
+
+
 
     def publish_on_farm(self):
         self._init_callbacks_client()
         self._set_project()
         self._prepare_scene()
+        #self._config_plugin_paths()
 
 
         msg = "Running validations...\n"

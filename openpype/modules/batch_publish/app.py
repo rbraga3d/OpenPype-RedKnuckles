@@ -28,7 +28,6 @@ class BatchPublish:
         app_name = self._app_name
 
 
-        install_openpype_plugins()
         app_manager = ApplicationManager()
 
 
