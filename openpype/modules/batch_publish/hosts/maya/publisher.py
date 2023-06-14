@@ -169,13 +169,36 @@ class Publisher:
 
 
         registered_paths = pyblish.api.registered_paths()
-        maya_plugin_path = ""
+        plugins_path = {}
 
         for path in registered_paths:
             if "/maya/plugins" in path:
-                maya_plugin_path = path
+                plugins_path["maya"] = path
 
-        pyblish.api.deregister_plugin_path(maya_plugin_path)
+            if "openpype/plugins/" in path:
+                plugins_path["openpype"] = path
+
+            if "batch_publish/plugins" in path:
+                plugins_path["batch_publish"] = path
+
+            if "pyblish/plugins" in path:
+                plugins_path["pyblish"] = path
+
+            if "deadline/plugins" in path:
+                plugins_path["deadline"] = path
+
+            if "ftrack/plugins" in path:
+                plugins_path["ftrack"] = path
+
+
+
+
+        pyblish.api.deregister_all_paths()
+
+        pyblish.api.register_plugin_path(plugins_path["openpype"])
+        pyblish.api.register_plugin_path(plugins_path["maya"])
+        pyblish.api.register_plugin_path(plugins_path["deadline"])
+        pyblish.api.register_plugin_path(plugins_path["ftrack"])
 
 
 
@@ -184,7 +207,7 @@ class Publisher:
         self._init_callbacks_client()
         self._set_project()
         self._prepare_scene()
-        #self._config_plugin_paths()
+        self._config_plugin_paths()
 
 
         msg = "Running validations...\n"
