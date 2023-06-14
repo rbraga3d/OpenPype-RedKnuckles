@@ -22,17 +22,15 @@ class CollectReview(pyblish.api.InstancePlugin):
 
         task = legacy_io.Session["AVALON_TASK"]
 
-        # Get panel.
-        # Skip if batchmode
-        if not lib.IS_HEADLESS:
-            instance.data["panel"] = cmds.playblast(
-                activeEditor=True
-            ).split("|")[-1]
-
-        else:
+        if lib.IS_HEADLESS:
             self.log.info(
-                "Running in headless mode, skipping Playbast - collect_review..."
-                )
+                "Running in headless mode, skipping Playbast - collect_review...")
+            return
+
+        # Get panel.
+        instance.data["panel"] = cmds.playblast(
+            activeEditor=True
+        ).split("|")[-1]
 
 
         # get cameras
