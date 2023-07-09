@@ -496,6 +496,10 @@ def on_init():
 
 
 def on_before_save():
+
+    # Deny saving if renderlayer is not masterlayer
+    lib.check_renderlayer_before_save()
+
     """Run validation for scene's FPS prior to saving"""
     return lib.validate_fps()
 
@@ -673,6 +677,9 @@ def before_workfile_open():
 
 
 def before_workfile_save(event):
+    log.info("SAVE EVENT = {}".format(event))
+    
+
     project_name = legacy_io.active_project()
     if handle_workfile_locks():
         _remove_workfile_lock()

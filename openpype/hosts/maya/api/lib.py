@@ -3985,3 +3985,29 @@ def create_rig_animation_instance(nodes, context, namespace, log=None):
             options={"useSelection": True},
             data={"dependencies": dependency}
         )
+
+
+def check_renderlayer_before_save():
+    """
+    Warns artist if master layer isn't visible when saving
+    """
+    
+    current_render_layer = get_current_renderlayer()
+    if current_render_layer == "defaultRenderLayer":
+        return
+
+    message = "Please save only on the masterLayer!"
+
+    cmds.confirmDialog(
+        title="Saving on wrong layer!", 
+        message=message,
+        messageAlign="center",
+        button=['Ok'],
+        defaultButton="Ok",
+        icon="warning"
+        )
+
+
+    
+
+

@@ -52,8 +52,8 @@ class BatchPublish:
         arguments = [
             "-batch",
             "-command",
-            "'{}'".format(command),
-            "-file"
+            "'{}'".format(command)
+            
         ]
         data = {
                     "project_name": project_name,

@@ -195,8 +195,8 @@ class Publisher:
 
         pyblish.api.deregister_all_paths()
 
-        pyblish.api.register_plugin_path(plugins_path["openpype"])
-        pyblish.api.register_plugin_path(plugins_path["maya"])
+        #pyblish.api.register_plugin_path(plugins_path["openpype"])
+        #pyblish.api.register_plugin_path(plugins_path["maya"])
         pyblish.api.register_plugin_path(plugins_path["deadline"])
         pyblish.api.register_plugin_path(plugins_path["ftrack"])
 
@@ -207,7 +207,7 @@ class Publisher:
         self._init_callbacks_client()
         self._set_project()
         self._prepare_scene()
-        self._config_plugin_paths()
+        #self._config_plugin_paths()
 
 
         msg = "Running validations...\n"
