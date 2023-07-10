@@ -5,7 +5,7 @@ from openpype.pipeline.publish import context_plugin_should_run
 
 
 class ValidateCurrentRenderIsDefaultLayer(pyblish.api.ContextPlugin):
-    """Validate if current render layer is the default/master layer"""
+    """Validates if the current render layer is the default/master layer."""
 
     label = "Current Render Layer Is The Default Layer"
     order = pyblish.api.ValidatorOrder
@@ -19,5 +19,5 @@ class ValidateCurrentRenderIsDefaultLayer(pyblish.api.ContextPlugin):
             return
 
         current_layer = cmds.editRenderLayerGlobals(query=True, currentRenderLayer=True)
-        
-        #assert current_layer == "defaultLayer", 
+        failed_message = "The current render layer is not the default/master layer. \n"
+        assert current_layer == "defaultRenderLayer", failed_message
