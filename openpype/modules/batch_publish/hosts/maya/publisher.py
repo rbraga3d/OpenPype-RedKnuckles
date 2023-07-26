@@ -192,13 +192,38 @@ class Publisher:
 
 
 
+        #pyblish.api.deregister_all_paths()
 
-        pyblish.api.deregister_all_paths()
+        # plugins = pyblish.api.discover()
+        # for plugin in plugins[:]:
 
-        pyblish.api.register_plugin_path(plugins_path["openpype"])
-        pyblish.api.register_plugin_path(plugins_path["maya"])
-        pyblish.api.register_plugin_path(plugins_path["deadline"])
-        pyblish.api.register_plugin_path(plugins_path["ftrack"])
+        #     if plugin.__name__.lower().startswith("validate"):
+        #         self._log.info("*PLUGIN VALIDATE* = {}".format(plugin))
+        #         pyblish.api.deregister_plugin(plugin)
+
+        #pyblish.api.register_plugin_path(plugins_path["openpype"])
+        #pyblish.api.deregister_plugin("/home/rafael.braga@redknuckles.co.uk/Documents/DEV/OpenPype/OpenPype-RedKnuckles/openpype/plugins/publish/collect_scene_version.py")
+        # # pyblish.api.register_plugin_path(plugins_path["maya"])
+        # pyblish.api.register_plugin_path(plugins_path["deadline"])
+        # pyblish.api.register_plugin_path(plugins_path["ftrack"])
+
+
+        def filter_plugins(plugins):
+            for plugin in plugins[:]:
+                if plugin.__name__.lower().startswith("validate"):
+                    self._log.info("*PLUGIN* = {}".format(plugin.__name__))
+                    
+                    plugins.remove(plugin)
+                # if plugin.__class__.__name__.lower().startswith("collect_scene_version"):
+                #     plugins.remove(plugin)
+
+
+        pyblish.api.register_discovery_filter(filter_plugins)
+
+        #self._log.info("DEPOIS PLUGINS PATH = {}".format(pyblish.api.plugin_paths()))
+        
+        
+        
 
 
 
